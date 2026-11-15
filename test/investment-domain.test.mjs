@@ -11,6 +11,7 @@ import {
   calculateMaturityAmount,
   calculateMaturityDate,
   createEmptyData,
+  deleteHoldings,
   exportRows,
   updateHolding
 } from "../src/investment-domain.mjs";
@@ -73,6 +74,33 @@ test("holdings with matching descriptions remain separate and invalid sales do n
     holdingId: holding.id, type: "SELL", date: "2025-02-01", quantity: 11, price: 120
   }, members), /cannot exceed/);
   assert.equal(data.transactions.length, 2);
+});
+
+test("single and bulk holding deletion cascade linked transactions and reject partial selections", () => {
+  const data = createEmptyData(members);
+  const first = addHolding(data, openingHolding(), members);
+  const second = addHolding(data, openingHolding({ name: "Second investment" }), members);
+  const third = addHolding(data, openingHolding({ name: "Third investment" }), members);
+  const retained = addHolding(data, openingHolding({ name: "Retained investment" }), members);
+  addTransaction(data, {
+    holdingId: first.id, type: "DIVIDEND", date: "2025-02-01", amount: 10
+  }, members);
+  addTransaction(data, {
+    holdingId: second.id, type: "BONUS", date: "2025-02-01", quantity: 1, price: 0
+  }, members);
+  addTransaction(data, {
+    holdingId: third.id, type: "DIVIDEND", date: "2025-02-01", amount: 20
+  }, members);
+
+  assert.deepEqual(deleteHoldings(data, [first.id]), { deleted: 1, deletedTransactions: 2 });
+  assert.throws(() => deleteHoldings(data, [second.id, "missing-id"]), /not found/);
+  assert.throws(() => deleteHoldings(data, [second.id, second.id]), /duplicates/);
+  assert.equal(data.holdings.length, 3);
+  assert.equal(data.transactions.length, 5);
+
+  assert.deepEqual(deleteHoldings(data, [second.id, third.id]), { deleted: 2, deletedTransactions: 4 });
+  assert.deepEqual(data.holdings.map((holding) => holding.id), [retained.id]);
+  assert.deepEqual(data.transactions.map((transaction) => transaction.holdingId), [retained.id]);
 });
 
 test("reference numbers identify duplicates without conflating same-name investments", () => {

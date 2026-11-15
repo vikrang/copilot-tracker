@@ -55,7 +55,7 @@ Every authorized family member can view and edit the shared household portfolio.
 - Listed equity, equity/debt mutual funds, fixed deposits, bonds/NCDs, PPF/EPF, NPS, gold and other holdings, with per-member ownership.
 - Transaction ledger for buys, sales, dividends/interest and bonus units. Sales use FIFO purchase lots to calculate realized return; bonus units are added at zero cost.
 - Fixed-income maturity and next-interest reminders (up to 90 and 30 days ahead, respectively). Dates are entered by a family member; reminders appear in the dashboard and are not sent as email or push notifications.
-- Editable investment details, manual price updates and a multi-sheet Excel import template with dropdowns and maturity formulas. The export contains private portfolio data.
+- Editable investment details, manual price updates, and single or bulk investment deletion. Deleting a holding also permanently removes its linked transactions; export a backup first if you need to retain that history. The multi-sheet Excel import template includes dropdowns and maturity formulas. The export contains private portfolio data.
 - Same-name holdings remain separate. A matching reference number is treated as a duplicate only for the same family member, product type and institution; exported holding IDs also prevent duplicate re-imports. Rows without a reference remain separate. Duplicate transaction events are rejected, and a sale cannot exceed the recorded available units.
 - Return projections for 1, 3, 5 and 10 years, with editable annual-growth and monthly-contribution assumptions.
 

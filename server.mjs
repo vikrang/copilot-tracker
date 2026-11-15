@@ -10,6 +10,7 @@ import {
   addImportedHoldings,
   addTransaction,
   buildDashboard,
+  deleteHoldings,
   exportRows,
   updateHolding,
   updateHoldingPrice,
@@ -415,6 +416,22 @@ const server = createServer(async (request, response) => {
       const input = await readJson(request);
       const holding = await store.mutate((data) => addHolding(data, input, allowedEmails));
       sendJson(response, 201, { holding });
+      return;
+    }
+    if (request.method === "DELETE" && url.pathname === "/api/holdings") {
+      const session = requireSession(request, response);
+      if (!session || !requireStore(response) || !requireMutationProtection(request, response, session)) return;
+      const { ids } = await readJson(request);
+      const result = await store.mutate((data) => deleteHoldings(data, ids));
+      sendJson(response, 200, result);
+      return;
+    }
+    if (request.method === "DELETE" && /^\/api\/holdings\/[^/]+$/.test(url.pathname)) {
+      const session = requireSession(request, response);
+      if (!session || !requireStore(response) || !requireMutationProtection(request, response, session)) return;
+      const holdingId = decodeURIComponent(url.pathname.split("/")[3]);
+      const result = await store.mutate((data) => deleteHoldings(data, [holdingId]));
+      sendJson(response, 200, result);
       return;
     }
     if (request.method === "POST" && url.pathname === "/api/transactions") {

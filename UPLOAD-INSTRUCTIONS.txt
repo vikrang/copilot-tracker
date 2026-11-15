@@ -16,3 +16,6 @@ PRICE DATA
 
 SECURITY
 Never upload .env, data/, credentials, or the encryption key to GitHub. Configure secrets in Render's environment settings.
+
+PORTFOLIO DELETION
+- Single and bulk delete remove holdings and all linked activity. Export first if you need to retain that history.

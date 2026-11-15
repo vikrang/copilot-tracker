@@ -267,8 +267,12 @@ function renderProjectionChart(projections, baseValue) {
 function holdingsTable(holdings, compact = false) {
   if (!holdings.length) return emptyPanel("Your portfolio starts here", "Add your family's first investment to see its value, cost and returns.", '<button class="button button-primary" type="button" data-action="add-holding">＋ Add investment</button>');
   const shown = compact ? holdings.slice(0, 5) : holdings;
-  return `<div class="table-wrap"><table class="data-table">
-    <thead><tr><th>Investment</th><th>Owner</th><th>Invested</th><th>Current value</th><th>Unrealized</th><th>Holding period</th>${compact ? "" : "<th>Price</th><th></th>"}</tr></thead>
+  const selectionToolbar = compact ? "" : `<div class="holdings-selection-toolbar">
+    <div><strong>Manage portfolio holdings</strong><small>Deleting an investment also permanently deletes its linked activity.</small></div>
+    <button class="button button-danger button-small" type="button" data-action="delete-selected-holdings" disabled>Delete selected (0)</button>
+  </div>`;
+  return `${selectionToolbar}<div class="table-wrap"><table class="data-table">
+    <thead><tr>${compact ? "" : '<th class="selection-cell"><input class="select-all-holdings" type="checkbox" aria-label="Select all investments"></th>'}<th>Investment</th><th>Owner</th><th>Invested</th><th>Current value</th><th>Unrealized</th><th>Holding period</th>${compact ? "" : "<th>Price</th><th></th>"}</tr></thead>
     <tbody>${shown.map((holding) => {
       const returnClass = holding.unrealized > 0 ? "positive" : holding.unrealized < 0 ? "negative" : "";
       const status = holding.units <= 1e-8
@@ -279,6 +283,7 @@ function holdingsTable(holdings, compact = false) {
             ? "Long-held"
             : "Short-held";
       return `<tr>
+        ${compact ? "" : `<td class="selection-cell"><input class="holding-select" type="checkbox" value="${escapeHtml(holding.id)}" aria-label="Select ${escapeHtml(holding.name)}"></td>`}
         <td><span class="holding-name">${escapeHtml(holding.name)}</span><small>${escapeHtml(holding.productType)}${holding.symbol ? ` · ${escapeHtml(holding.symbol)}` : ""}</small></td>
         <td><span class="member-chip"><i>${escapeHtml(memberLabel(holding.ownerEmail).slice(0, 1).toUpperCase())}</i>${escapeHtml(memberLabel(holding.ownerEmail))}</span></td>
         <td>${money(holding.costBasis)}</td>
@@ -286,7 +291,7 @@ function holdingsTable(holdings, compact = false) {
         <td class="${returnClass}">${holding.unrealized === null ? "—" : money(holding.unrealized)}${holding.unrealized !== null && holding.costBasis ? `<small>${((holding.unrealized / holding.costBasis) * 100).toFixed(1)}%</small>` : ""}</td>
         <td><span class="term-chip ${status === "Long-held" ? "term-long" : status === "Mixed" ? "term-mixed" : status === "Closed" ? "term-closed" : "term-short"}">${status}</span><small>${holding.oldestDays === null ? "—" : `${holding.oldestDays} days`} · indicative</small></td>
         ${compact ? "" : `<td>${holding.currentPrice === null ? "—" : money(holding.currentPrice, { decimals: 2 })}<small>${holding.priceUpdatedAt ? `${escapeHtml(holding.priceSource || "manual")} · ${escapeHtml(new Date(holding.priceUpdatedAt).toLocaleDateString("en-IN"))}` : "No price update"}</small></td>
-          <td><button class="icon-button" type="button" title="Edit investment details" aria-label="Edit ${escapeHtml(holding.name)}" data-action="edit-holding" data-id="${escapeHtml(holding.id)}">✎</button><button class="icon-button" type="button" title="Update price" aria-label="Update price for ${escapeHtml(holding.name)}" data-action="edit-price" data-id="${escapeHtml(holding.id)}">↻</button></td>`}
+            <td><button class="icon-button" type="button" title="Edit investment details" aria-label="Edit ${escapeHtml(holding.name)}" data-action="edit-holding" data-id="${escapeHtml(holding.id)}">✎</button><button class="icon-button" type="button" title="Update price" aria-label="Update price for ${escapeHtml(holding.name)}" data-action="edit-price" data-id="${escapeHtml(holding.id)}">↻</button><button class="icon-button icon-button-danger" type="button" title="Delete investment and its activity" aria-label="Delete ${escapeHtml(holding.name)}" data-action="delete-holding" data-id="${escapeHtml(holding.id)}">⌫</button></td>`}
       </tr>`;
     }).join("")}</tbody>
   </table></div>`;
@@ -848,6 +853,50 @@ async function refreshPrices() {
   }
 }
 
+function updateHoldingSelectionControls() {
+  const checkboxes = [...document.querySelectorAll(".holding-select")];
+  const selectedCount = checkboxes.filter((checkbox) => checkbox.checked).length;
+  const selectAll = document.querySelector(".select-all-holdings");
+  const deleteButton = document.querySelector('[data-action="delete-selected-holdings"]');
+  if (selectAll) {
+    selectAll.checked = checkboxes.length > 0 && selectedCount === checkboxes.length;
+    selectAll.indeterminate = selectedCount > 0 && selectedCount < checkboxes.length;
+  }
+  if (deleteButton) {
+    deleteButton.disabled = selectedCount === 0;
+    deleteButton.textContent = `Delete selected (${selectedCount})`;
+  }
+}
+
+async function deleteHolding(holdingId) {
+  const holding = state.dashboard.holdings.find((item) => item.id === holdingId);
+  if (!holding || !window.confirm(`Delete "${holding.name}" and all linked activity? This cannot be undone.`)) return;
+  try {
+    const result = await api(`/api/holdings/${encodeURIComponent(holdingId)}`, { method: "DELETE" });
+    if (await loadDashboard()) {
+      setNotice(`Deleted "${holding.name}" and ${result.deletedTransactions} linked activity record(s).`, "success");
+    }
+  } catch (error) {
+    setNotice(error.message, "error");
+  }
+}
+
+async function deleteSelectedHoldings() {
+  const ids = [...document.querySelectorAll(".holding-select:checked")].map((checkbox) => checkbox.value);
+  if (!ids.length || !window.confirm(`Delete ${ids.length} selected investment(s) and all their linked activity? This cannot be undone.`)) return;
+  const button = document.querySelector('[data-action="delete-selected-holdings"]');
+  if (button) button.disabled = true;
+  try {
+    const result = await api("/api/holdings", { method: "DELETE", body: { ids } });
+    if (await loadDashboard()) {
+      setNotice(`Deleted ${result.deleted} investment(s) and ${result.deletedTransactions} linked activity record(s).`, "success");
+    }
+  } catch (error) {
+    setNotice(error.message, "error");
+    updateHoldingSelectionControls();
+  }
+}
+
 async function submitForm(form, path, method = "POST", successMessage = "Saved.") {
   const submit = form.querySelector('[type="submit"]');
   submit.disabled = true;
@@ -1042,6 +1091,8 @@ document.addEventListener("click", async (event) => {
     if (action.dataset.action === "add-transaction") openTransactionForm();
     if (action.dataset.action === "edit-holding") openEditHoldingForm(action.dataset.id);
     if (action.dataset.action === "edit-price") openPriceForm(action.dataset.id);
+    if (action.dataset.action === "delete-holding") await deleteHolding(action.dataset.id);
+    if (action.dataset.action === "delete-selected-holdings") await deleteSelectedHoldings();
     if (action.dataset.action === "select-equity") {
       const form = action.closest("form");
       form.elements.name.value = action.dataset.name;
@@ -1112,6 +1163,11 @@ document.addEventListener("change", (event) => {
   if (event.target.id === "holdings-import") importHoldings(event.target.files[0]);
   if (event.target.id === "transactions-import") importTransactions(event.target.files[0]);
   if (event.target.id === "transaction-type") refreshTransactionFields();
+  if (event.target.matches(".select-all-holdings")) {
+    document.querySelectorAll(".holding-select").forEach((checkbox) => { checkbox.checked = event.target.checked; });
+    updateHoldingSelectionControls();
+  }
+  if (event.target.matches(".holding-select")) updateHoldingSelectionControls();
   if (event.target.matches(".holding-product-type")) updateProductSearchVisibility(event.target.form);
   if (event.target.matches(".tenor-input,.tenor-start")) refreshMaturityFields(event.target.form);
   if (event.target.matches(".bank-ifsc")) scheduleIfscLookup(event.target.form);

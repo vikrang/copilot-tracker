@@ -54,6 +54,8 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
 .button-primary:hover:not(:disabled) { background: var(--accent-dark); box-shadow: 0 5px 12px rgba(106, 91, 232, .2); transform: translateY(-1px); }
 .button-secondary { border-color: var(--line-strong); color: var(--text-soft); background: var(--surface); }
 .button-secondary:hover:not(:disabled) { border-color: #c9c4f4; color: var(--accent); background: #faf9ff; }
+.button-danger { color: #fff; background: #bd4d5b; }
+.button-danger:hover:not(:disabled) { background: #a83e4c; }
 .button-small { min-height: 35px; padding: 0 12px; font-size: 11px; }
 .button-google { width: 100%; margin-top: 16px; border-color: var(--line-strong); color: #28334d; background: white; font-weight: 650; }
 .button-google:hover { background: #f9faff; box-shadow: var(--shadow); }
@@ -161,6 +163,12 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
 .empty-panel p { margin: 0; color: #9aa4b3; font-size: 9px; }
 .empty-panel .button { margin-top: 6px; }
 .portfolio-panel { margin-top: 15px; }
+.holdings-selection-toolbar { padding: 13px 15px; display: flex; align-items: center; justify-content: space-between; gap: 14px; border-bottom: 1px solid #f0f2f6; }
+.holdings-selection-toolbar > div { display: grid; gap: 2px; }
+.holdings-selection-toolbar strong { color: #495772; font-size: 11px; font-weight: 650; }
+.holdings-selection-toolbar small { color: #8d98aa; font-size: 9px; }
+.selection-cell { width: 38px; text-align: center; }
+.holding-select, .select-all-holdings { width: 16px; height: 16px; margin: 0; accent-color: var(--accent); cursor: pointer; vertical-align: middle; }
 .table-wrap { min-width: 0; overflow-x: auto; }
 .data-table { width: 100%; border-collapse: collapse; text-align: left; white-space: nowrap; }
 .data-table th { padding: 10px 11px; color: #9aa4b3; background: #fafbfc; font-size: 8px; font-weight: 700; letter-spacing: .045em; text-transform: uppercase; }
@@ -182,6 +190,8 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
 .term-closed { color: #788397; background: #eff1f5; }
 .icon-button { width: 28px; height: 28px; border: 1px solid transparent; border-radius: 7px; color: #8994a8; background: transparent; cursor: pointer; font-size: 15px; }
 .icon-button:hover { border-color: #e5e2ff; color: var(--accent); background: #faf9ff; }
+.icon-button-danger { color: #bd4d5b; }
+.icon-button-danger:hover { border-color: #f0d8dc; color: #a83e4c; background: #fff8f8; }
 .panel-footer { padding-top: 11px; display: flex; justify-content: center; }
 .projection-summary { display: flex; align-items: baseline; gap: 9px; }
 .projection-summary strong { color: #27324c; font-size: 23px; font-weight: 690; letter-spacing: -.04em; }
@@ -267,6 +277,7 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
 }
 
 @media (max-width: 740px) {
+  .holdings-selection-toolbar { align-items: flex-start; flex-direction: column; }
   .auth-screen > .brand { top: 20px; left: 18px; }
   .auth-card { margin: 67px auto 35px; padding: 28px 23px; }
   .sidebar { width: 250px; transform: translateX(-101%); transition: transform .18s ease; box-shadow: none; }

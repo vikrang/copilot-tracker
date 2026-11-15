@@ -358,6 +358,24 @@ export function updateHolding(data, holdingId, input, allowedEmails) {
   return holding;
 }
 
+export function deleteHoldings(data, holdingIds) {
+  if (!Array.isArray(holdingIds) || holdingIds.length < 1 || holdingIds.length > data.holdings.length) {
+    throw invalid("Select one or more existing investments to delete.");
+  }
+  const ids = holdingIds.map((id) => typeof id === "string" ? id.trim() : "");
+  if (ids.some((id) => !id)) throw invalid("Investment IDs are invalid.");
+  if (new Set(ids).size !== ids.length) throw invalid("Investment selection contains duplicates.");
+
+  const selectedIds = new Set(ids);
+  const deletedCount = data.holdings.filter((holding) => selectedIds.has(holding.id)).length;
+  if (deletedCount !== ids.length) throw invalid("One or more investments were not found.");
+
+  const deletedTransactions = data.transactions.filter((transaction) => selectedIds.has(transaction.holdingId)).length;
+  data.holdings = data.holdings.filter((holding) => !selectedIds.has(holding.id));
+  data.transactions = data.transactions.filter((transaction) => !selectedIds.has(transaction.holdingId));
+  return { deleted: deletedCount, deletedTransactions };
+}
+
 export function updateHoldingPrice(data, holdingId, price, source = "manual", asOf = new Date().toISOString()) {
   const holding = data.holdings.find((item) => item.id === holdingId);
   if (!holding) throw invalid("Investment not found.");
