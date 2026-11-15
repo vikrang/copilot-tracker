@@ -421,7 +421,7 @@ function toolsScreen() {
     <div class="grid-two tools-grid">
       <section class="panel"><div class="panel-heading"><div><p class="eyebrow">BULK ADD</p><h2>Import investments</h2></div><span class="tool-icon">⇧</span></div>
         <p class="panel-description">The styled Excel template has asset-class tabs, a Read me sheet, a field guide, dropdowns and protected maturity formulas. Each imported row becomes an opening BUY position.</p>
-        <div class="tool-actions"><button class="button button-secondary" type="button" data-action="download-template">Download Excel template</button><label class="button button-primary file-label">Choose Excel or CSV<input id="holdings-import" type="file" accept=".xlsx,.csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,text/csv" hidden></label></div>
+        <div class="tool-actions"><a class="button button-secondary" href="/api/import/holdings-template">Download Excel template</a><label class="button button-primary file-label">Choose Excel or CSV<input id="holdings-import" type="file" accept=".xlsx,.csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,text/csv" hidden></label></div>
         <p class="tool-small">Enter a purchase/start date and tenor to calculate maturity; otherwise enter a maturity date directly. Same-name investments stay separate. Reference numbers distinguish repeated records; rows without one remain separate.</p>
         <p class="tool-small">IFSC lookup fills bank name/address in forms and imports using an online public directory; if lookup is unavailable, the code is kept and a warning is shown.</p>
         <div class="tool-actions transaction-import-actions"><button class="button button-secondary" type="button" data-action="download-transactions-template">Transaction template</button><label class="button button-secondary file-label">Import transactions<input id="transactions-import" type="file" accept=".csv,text/csv" hidden></label></div>
@@ -963,25 +963,6 @@ function downloadCsv(filename, rows) {
   setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
 
-async function downloadTemplate() {
-  try {
-    const response = await fetch("/api/import/holdings-template", { credentials: "same-origin", cache: "no-store" });
-    if (!response.ok) {
-      const payload = await response.json().catch(() => ({}));
-      throw new Error(payload.error || `Template download failed (HTTP ${response.status}).`);
-    }
-    const url = URL.createObjectURL(await response.blob());
-    const link = document.createElement("a");
-    link.href = url;
-    link.download = "investment-holdings-template.xlsx";
-    link.click();
-    setTimeout(() => URL.revokeObjectURL(url), 1000);
-    setNotice("Excel template downloaded with asset-class tabs, dropdowns, a field guide and calculated maturity cells.", "success");
-  } catch (error) {
-    setNotice(error.message, "error");
-  }
-}
-
 async function importHoldings(file) {
   if (!file) return;
   const isWorkbook = /\.xlsx$/i.test(file.name);
@@ -1109,7 +1090,6 @@ document.addEventListener("click", async (event) => {
       form.querySelector(".mutual-fund-search-results").hidden = true;
     }
     if (action.dataset.action === "refresh-prices") await refreshPrices();
-    if (action.dataset.action === "download-template") await downloadTemplate();
     if (action.dataset.action === "download-transactions-template") downloadTransactionsTemplate();
     if (action.dataset.action === "export-data") await exportData();
   }
