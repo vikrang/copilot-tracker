@@ -1,0 +1,85 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="theme-color" content="#f5f7fb">
+    <meta name="description" content="A private family investment portfolio dashboard.">
+    <title>Household — Investment portfolio</title>
+    <link rel="stylesheet" href="/styles.css">
+    <script type="module" src="/app.js"></script>
+  </head>
+  <body>
+    <div id="auth-screen" class="auth-screen">
+      <a class="brand" href="/" aria-label="Household home">
+        <span class="brand-mark" aria-hidden="true">h</span>
+        <span>household<span class="brand-period">.</span></span>
+      </a>
+      <main class="auth-card">
+        <div class="auth-icon" aria-hidden="true">↗</div>
+        <p class="eyebrow">YOUR FAMILY'S FINANCIAL PICTURE</p>
+        <h1>Invest together,<br><span>with clarity.</span></h1>
+        <p class="auth-copy">A private shared view of your family's investments, income and upcoming milestones.</p>
+        <div id="auth-message" class="notice notice-info" role="status">Checking secure sign-in…</div>
+        <a id="google-signin" class="button button-google" href="/auth/google" hidden>
+          <span class="google-g" aria-hidden="true">G</span>
+          Continue with Google
+          <span aria-hidden="true">→</span>
+        </a>
+        <div id="setup-guide" class="setup-guide" hidden>
+          <strong>One-time setup required</strong>
+          <p>For local setup, copy <code>.env.example</code> to <code>.env</code>, enter the values from your Google OAuth client and generate a private encryption key. No Google passwords are collected or stored.</p>
+          <p id="setup-missing" class="setup-missing"></p>
+          <code>See “Google sign-in and family access” in README.md</code>
+        </div>
+        <p class="auth-footnote"><span class="lock-icon" aria-hidden="true">▣</span> Encrypted shared data · Google identity only · No PAN or Aadhaar fields</p>
+      </main>
+      <footer class="auth-footer">PRIVATE BY DESIGN <span>·</span> INDIA</footer>
+    </div>
+
+    <div id="app-shell" class="app-shell" hidden>
+      <aside class="sidebar">
+        <a class="brand" href="/" aria-label="Household home">
+          <span class="brand-mark" aria-hidden="true">h</span>
+          <span>household<span class="brand-period">.</span></span>
+        </a>
+        <p class="sidebar-label">WORKSPACE</p>
+        <nav class="side-nav" aria-label="Main navigation">
+          <button class="nav-link active" type="button" data-screen="overview"><span class="nav-icon">⌂</span> Overview</button>
+          <button class="nav-link" type="button" data-screen="portfolio"><span class="nav-icon">▤</span> Portfolio <span id="portfolio-nav-count" class="nav-count">0</span></button>
+          <button class="nav-link" type="button" data-screen="debt"><span class="nav-icon">◷</span> Fixed income</button>
+          <button class="nav-link" type="button" data-screen="activity"><span class="nav-icon">↔</span> Activity</button>
+          <button class="nav-link" type="button" data-screen="planning"><span class="nav-icon">⌁</span> Planning</button>
+          <button class="nav-link" type="button" data-screen="tools"><span class="nav-icon">⇵</span> Import &amp; export</button>
+        </nav>
+        <div class="sidebar-bottom">
+          <div class="secure-note"><span class="secure-dot"></span><span><strong>Private household</strong><small>Shared with authorized family</small></span></div>
+          <button id="signout-button" class="account-button" type="button">
+            <span id="avatar" class="avatar">A</span>
+            <span class="account-copy"><strong id="account-name">Google account</strong><small>Sign out</small></span>
+            <span class="account-menu">···</span>
+          </button>
+        </div>
+      </aside>
+
+      <main class="main-content">
+        <header class="topbar">
+          <button id="mobile-menu" class="mobile-menu" type="button" aria-label="Toggle navigation">☰</button>
+          <div class="breadcrumb"><span>Household</span><span class="breadcrumb-slash">/</span><strong id="page-title">Overview</strong></div>
+          <div class="topbar-actions">
+            <span class="market-status"><i></i><span>Private workspace</span></span>
+            <button id="add-investment-top" class="button button-primary button-small" type="button"><span>＋</span> Add investment</button>
+          </div>
+        </header>
+
+        <div id="app-notice" class="app-notice" role="status" hidden></div>
+        <div id="loading-state" class="loading-state"><span class="spinner"></span>Loading your encrypted household portfolio…</div>
+        <div id="screen-content" hidden></div>
+      </main>
+    </div>
+
+    <dialog id="modal" class="modal">
+      <div id="modal-content"></div>
+    </dialog>
+  </body>
+</html>

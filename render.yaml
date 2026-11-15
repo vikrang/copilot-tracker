@@ -1,0 +1,20 @@
+services:
+  - type: web
+    name: household-investment-tracker
+    runtime: node
+    region: singapore
+    plan: 0.5c-512mb
+    buildCommand: npm ci
+    startCommand: npm start
+    healthCheckPath: /
+    disk:
+      name: investment-tracker-data
+      mountPath: /var/data
+      sizeGB: 1
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: HOST
+        value: 0.0.0.0
+      - key: DATA_FILE
+        value: /var/data/family-investments.enc

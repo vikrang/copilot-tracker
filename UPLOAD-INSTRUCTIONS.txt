@@ -1,0 +1,20 @@
+INVESTMENT TRACKER - UPLOAD PACKAGE
+
+This bundle contains the household investment tracker only. It deliberately excludes the stock scanner project.
+
+UPLOAD
+1. Extract this ZIP into the root of a separate GitHub repository for the investment tracker. Keep folder names intact, especially src/ and public/.
+2. Upload and commit the complete extracted contents. Do not copy just server.mjs; it imports files from src/.
+3. Keep the scanner repository and Render service separate and unchanged.
+4. In Render, create a separate Web Service from the investment-tracker repository/branch, or use the included render.yaml Blueprint. For manual setup use the repository root, build command `npm ci`, start command `npm start`, and HOST=`0.0.0.0`.
+5. Set Google OAuth and encryption secrets in the tracker service's Render Environment settings, following README.md. This ZIP intentionally does not contain .env or household data.
+
+CONTENTS
+- server.mjs, package.json, package-lock.json, render.yaml
+- public/ frontend files
+- src/ tracker modules required by server.mjs
+- test/ tracker tests
+- README.md, .env.example, .gitignore, start.bat
+
+SECURITY
+Never upload .env, data/, credentials, or the encryption key to GitHub. Configure secrets in Render's environment settings.
