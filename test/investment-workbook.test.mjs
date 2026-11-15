@@ -108,16 +108,23 @@ test("Excel import maps product-specific fields and keeps maturity server-author
 
   const funds = workbook.getWorksheet("Equity - Mutual Funds");
   set(funds, 2, "Investor name *", memberNames[1]);
-  set(funds, 2, "Investment name *", "Sample fund");
+  set(funds, 2, "Scheme name *", "Sample fund");
   set(funds, 2, "AMC *", "SBI Mutual Fund");
   set(funds, 2, "Scheme category *", "Large Cap");
   set(funds, 2, "Plan *", "Direct");
   set(funds, 2, "Option *", "Growth");
+  set(funds, 2, "AMFI scheme code *", "135762");
   set(funds, 2, "Units held *", 12);
   set(funds, 2, "Purchase / start date *", new Date("2024-06-01T00:00:00.000Z"));
   set(funds, 2, "Average NAV (₹) *", 100);
   set(funds, 2, "Current NAV (₹)", 125);
 
+  set(funds, 2, "AMFI scheme code *", "");
+  await assert.rejects(
+    async () => parseHoldingsWorkbook(Buffer.from(await workbook.xlsx.writeBuffer()), members, memberNames),
+    /AMFI scheme code \* is required/
+  );
+  set(funds, 2, "AMFI scheme code *", "135762");
   const rows = await parseHoldingsWorkbook(Buffer.from(await workbook.xlsx.writeBuffer()), members, memberNames);
   assert.equal(rows.length, 3);
   assert.deepEqual(
@@ -131,6 +138,7 @@ test("Excel import maps product-specific fields and keeps maturity server-author
     ]
   );
   assert.equal(rows[1].ownerEmail, members[0]);
+  assert.equal(rows[0].symbol, "135762");
   assert.equal(rows[1].tenorMonths, 1);
   assert.equal(rows[1].maturityDate, "2025-02-28");
   assert.equal(rows[1].broker, "HDFC Bank");

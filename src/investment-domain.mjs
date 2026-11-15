@@ -11,6 +11,7 @@ export const PRODUCT_TYPES = [
   "Gold",
   "Other"
 ];
+const MUTUAL_FUND_PRODUCT_TYPES = new Set(["Equity mutual fund", "Debt mutual fund"]);
 
 export const TRANSACTION_TYPES = ["BUY", "SELL", "DIVIDEND", "BONUS"];
 export const INTEREST_FREQUENCIES = ["Monthly", "Quarterly", "Half-yearly", "Annual", "At maturity", "Other"];
@@ -178,8 +179,13 @@ export function normalizeHolding(input, allowedEmails, existing = []) {
   const productType = requiredText(input.productType, "Product type", 40);
   if (!PRODUCT_TYPES.includes(productType)) throw invalid("Choose a supported investment product type.");
   const ownerEmail = cleanEmail(input.ownerEmail, allowedEmails);
-  const name = requiredText(input.name, "Investment name", 100);
-  const symbol = optionalText(input.symbol, "Symbol", 20)?.toUpperCase() || null;
+  const isMutualFund = MUTUAL_FUND_PRODUCT_TYPES.has(productType);
+  const name = requiredText(input.name, isMutualFund ? "Scheme name" : "Investment name", 100);
+  const symbolLabel = isMutualFund ? "AMFI scheme code" : "Symbol";
+  const symbol = optionalText(input.symbol, symbolLabel, 20)?.toUpperCase() || null;
+  if (isMutualFund && (!symbol || !/^\d{1,10}$/.test(symbol))) {
+    throw invalid("AMFI scheme code is required and must be numeric.");
+  }
   if (symbol && !/^[A-Z0-9.-]+$/.test(symbol)) throw invalid("Symbol may contain letters, numbers, dots, and hyphens.");
   const broker = optionalText(input.broker, "Broker / institution", 80);
   const purchaseDate = dateValue(input.purchaseDate, "Purchase date", true);

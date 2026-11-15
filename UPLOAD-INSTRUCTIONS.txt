@@ -11,7 +11,7 @@ UPLOAD
 
 PRICE DATA
 - Listed equities: NSE official end-of-day bhavcopy.
-- Mutual funds: AMFI published daily NAV; add the AMFI scheme code to each fund.
+- Equity/debt mutual funds: scheme name and numeric AMFI scheme code are required; NAV uses AMFI published data.
 - Bonds/NCDs: a trusted configured adapter must return a price per unit keyed by ISIN; otherwise use manual prices.
 
 SECURITY

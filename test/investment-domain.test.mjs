@@ -54,6 +54,15 @@ test("household ledger calculates FIFO realized and unrealized return with incom
   assert.equal(dashboard.summary.netReturn, 152);
 });
 
+test("equity and debt mutual funds require a numeric AMFI scheme code", () => {
+  for (const productType of ["Equity mutual fund", "Debt mutual fund"]) {
+    const data = createEmptyData(members);
+    const fund = openingHolding({ productType, name: "Sample scheme", symbol: "" });
+    assert.throws(() => addHolding(data, fund, members), /AMFI scheme code is required/);
+    assert.doesNotThrow(() => addHolding(data, { ...fund, symbol: "135762" }, members));
+  }
+});
+
 test("holdings with matching descriptions remain separate and invalid sales do not mutate the ledger", () => {
   const data = createEmptyData(members);
   const holding = addHolding(data, openingHolding(), members);

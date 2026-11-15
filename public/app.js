@@ -9,6 +9,7 @@ const PRODUCT_TYPES = [
   "Gold",
   "Other"
 ];
+const MUTUAL_FUND_TYPES = ["Equity mutual fund", "Debt mutual fund"];
 const TRANSACTION_TYPES = ["BUY", "SELL", "DIVIDEND", "BONUS"];
 const INTEREST_FREQUENCIES = ["Monthly", "Quarterly", "Half-yearly", "Annual", "At maturity", "Other"];
 const byId = (id) => document.getElementById(id);
@@ -27,6 +28,8 @@ const elements = {
 };
 let equitySearchTimer = null;
 let equitySearchSequence = 0;
+let mutualFundSearchTimer = null;
+let mutualFundSearchSequence = 0;
 const state = { session: null, dashboard: null, screen: "overview", csrfToken: null };
 const screenTitles = {
   overview: "Overview",
@@ -317,8 +320,8 @@ function overviewScreen() {
     ? `${number(summary.returnPct, 1)}% return on recorded buys · indicative`
     : "Add positions to calculate returns";
   const notice = state.session.marketDataConfigured
-    ? "Configured market-data adapter available · quote timing depends on your provider"
-    : "NSE bhavcopy close prices are available on demand · latest available trading date, not live quotes";
+    ? "Refresh uses the configured adapter for identified securities and AMFI's latest published mutual-fund NAVs"
+    : "NSE closing prices and AMFI-published mutual-fund NAVs are available on demand; bond prices need an adapter or manual entry";
   return `<section class="page-heading page-heading-row">
     <div><p class="eyebrow">YOUR FAMILY'S FINANCIAL PICTURE</p><h1>Good to see you, ${escapeHtml(memberLabel(state.session.user.email))}.</h1><p class="page-subtitle">A shared view of what's invested, what's growing and what's coming up.</p></div>
     <span class="date-pill"><i></i> Updated ${formatDate(data.asOf)}</span>
@@ -361,8 +364,8 @@ function overviewScreen() {
 
 function portfolioScreen() {
   return `<section class="page-heading page-heading-row"><div><p class="eyebrow">YOUR INVESTMENTS</p><h1>Portfolio</h1><p class="page-subtitle">Positions shared across the authorized household.</p></div>
-    <div class="heading-actions"><button class="button button-secondary button-small" type="button" data-action="refresh-prices" title="${state.session.marketDataConfigured ? "Refresh from the configured market-data adapter" : "Refresh from the latest available NSE end-of-day bhavcopy"}">↻ Refresh prices</button><button class="button button-primary button-small" type="button" data-action="add-holding">＋ Add investment</button></div></section>
-    <div class="inline-note"><span>ⓘ</span>${state.session.marketDataConfigured ? "Prices come from the configured adapter and may be delayed or incomplete." : "Refresh uses the latest available NSE bhavcopy closing prices; values are end-of-day, not live."}</div>
+    <div class="heading-actions"><button class="button button-secondary button-small" type="button" data-action="refresh-prices" title="Refresh NSE equity prices and AMFI mutual-fund NAVs; configured adapter may also price bonds">↻ Refresh prices</button><button class="button button-primary button-small" type="button" data-action="add-holding">＋ Add investment</button></div></section>
+    <div class="inline-note"><span>ⓘ</span>${state.session.marketDataConfigured ? "Refresh uses the configured adapter for identified securities plus AMFI-published daily mutual-fund NAVs. Bond adapter coverage depends on your provider." : "Refresh uses NSE end-of-day closes and AMFI-published daily mutual-fund NAVs. Bonds need a configured adapter or manual prices."}</div>
     <section class="panel portfolio-panel">${holdingsTable(state.dashboard.holdings)}</section>
     <p class="data-caveat">ROI uses recorded purchase costs and your latest entered price. Family-level realized returns use FIFO cost basis. Holding period is informational only; tax outcomes depend on current law and your circumstances.</p>`;
 }
@@ -572,24 +575,116 @@ function equitySearchFields() {
     <div class="field-wide equity-search-results" role="listbox" aria-live="polite" hidden></div>`;
 }
 
-function updateEquitySearchVisibility(form) {
-  const field = form.querySelector(".equity-search-field");
-  const results = form.querySelector(".equity-search-results");
-  const search = form.querySelector(".equity-search-input");
-  if (!field || !results || !search) return;
-  const visible = form.elements.productType.value === "Listed equity";
-  field.hidden = !visible;
-  if (!visible) {
-    if (equitySearchTimer) clearTimeout(equitySearchTimer);
-    equitySearchSequence += 1;
-    search.value = "";
-    results.innerHTML = "";
-    results.hidden = true;
+function mutualFundSearchFields() {
+  return `<label class="field-wide mutual-fund-search-field" hidden>Search AMFI mutual-fund schemes<input class="mutual-fund-search-input" type="search" autocomplete="off" placeholder="Type at least 3 letters of a scheme"><small>Searches AMFI's published NAV list. Select a scheme to fill the required scheme name and code.</small></label>
+    <div class="field-wide equity-search-results mutual-fund-search-results" role="listbox" aria-live="polite" hidden></div>`;
+}
+
+function updateProductSearchVisibility(form) {
+  const productType = form.elements.productType.value;
+  const equityField = form.querySelector(".equity-search-field");
+  const equityResults = form.querySelector(".equity-search-results:not(.mutual-fund-search-results)");
+  const equitySearch = form.querySelector(".equity-search-input");
+  const fundField = form.querySelector(".mutual-fund-search-field");
+  const fundResults = form.querySelector(".mutual-fund-search-results");
+  const fundSearch = form.querySelector(".mutual-fund-search-input");
+  const identifier = form.elements.symbol;
+  const isMutualFund = MUTUAL_FUND_TYPES.includes(productType);
+  const nameLabel = form.querySelector(".investment-name-label");
+  const identifierLabel = form.querySelector(".price-identifier-label");
+  const identifierNote = form.querySelector(".price-identifier-note");
+
+  if (nameLabel) nameLabel.textContent = isMutualFund ? "Scheme name *" : "Investment name *";
+  if (identifierLabel) {
+    identifierLabel.textContent = isMutualFund
+      ? "AMFI scheme code *"
+      : productType === "Listed equity"
+        ? "NSE symbol"
+        : productType === "Bond / NCD"
+          ? "Bond ISIN"
+          : "Price identifier";
+  }
+  if (identifierNote) {
+    identifierNote.textContent = isMutualFund
+      ? ""
+      : productType === "Listed equity"
+        ? "(for NSE price updates)"
+        : productType === "Bond / NCD"
+          ? "(for adapter pricing)"
+          : "(optional)";
+  }
+
+  if (equityField && equityResults && equitySearch) {
+    const visible = productType === "Listed equity";
+    equityField.hidden = !visible;
+    if (!visible) {
+      if (equitySearchTimer) clearTimeout(equitySearchTimer);
+      equitySearchSequence += 1;
+      equitySearch.value = "";
+      equityResults.innerHTML = "";
+      equityResults.hidden = true;
+    }
+  }
+  if (fundField && fundResults && fundSearch) {
+    const visible = MUTUAL_FUND_TYPES.includes(productType);
+    fundField.hidden = !visible;
+    if (!visible) {
+      if (mutualFundSearchTimer) clearTimeout(mutualFundSearchTimer);
+      mutualFundSearchSequence += 1;
+      fundSearch.value = "";
+      fundResults.innerHTML = "";
+      fundResults.hidden = true;
+    }
+  }
+  if (identifier) {
+    identifier.required = isMutualFund;
+    identifier.placeholder = productType === "Listed equity"
+      ? "e.g. HDFCBANK"
+      : isMutualFund
+        ? "AMFI scheme code, e.g. 135762"
+        : productType === "Bond / NCD"
+          ? "ISIN, e.g. INE..."
+          : "Optional";
   }
 }
 
+function showMutualFundSearchResults(form, items) {
+  const results = form.querySelector(".mutual-fund-search-results");
+  if (!results) return;
+  results.innerHTML = items.length
+    ? items.map((item) => `<button class="equity-search-result" type="button" role="option" data-action="select-mutual-fund" data-scheme-code="${escapeHtml(item.schemeCode)}" data-name="${escapeHtml(item.schemeName)}" data-plan="${escapeHtml(item.plan)}" data-option="${escapeHtml(item.option)}"><strong>${escapeHtml(item.schemeCode)} · ₹${number(item.nav, 4)}</strong><span>${escapeHtml(item.schemeName)} · ${escapeHtml(item.plan)} · ${escapeHtml(item.option)} · ${formatDate(item.asOf)}</span></button>`).join("")
+    : '<p class="equity-search-message">No matching AMFI mutual-fund schemes found.</p>';
+  results.hidden = false;
+}
+
+function scheduleMutualFundSearch(input) {
+  if (mutualFundSearchTimer) clearTimeout(mutualFundSearchTimer);
+  const form = input.form;
+  const results = form.querySelector(".mutual-fund-search-results");
+  const query = input.value.trim();
+  const sequence = ++mutualFundSearchSequence;
+  if (query.length < 3) {
+    results.innerHTML = query ? '<p class="equity-search-message">Type at least 3 letters to search.</p>' : "";
+    results.hidden = !query;
+    return;
+  }
+  results.innerHTML = '<p class="equity-search-message">Searching AMFI NAV list…</p>';
+  results.hidden = false;
+  mutualFundSearchTimer = setTimeout(async () => {
+    try {
+      const { items } = await api(`/api/mutual-funds/search?q=${encodeURIComponent(query)}`);
+      if (!form.isConnected || input.value.trim() !== query || sequence !== mutualFundSearchSequence) return;
+      showMutualFundSearchResults(form, items);
+    } catch (error) {
+      if (!form.isConnected || sequence !== mutualFundSearchSequence) return;
+      results.innerHTML = `<p class="equity-search-message">${escapeHtml(error.message)}</p>`;
+      results.hidden = false;
+    }
+  }, 300);
+}
+
 function showEquitySearchResults(form, items) {
-  const results = form.querySelector(".equity-search-results");
+  const results = form.querySelector(".equity-search-results:not(.mutual-fund-search-results)");
   if (!results) return;
   results.innerHTML = items.length
     ? items.map((item) => `<button class="equity-search-result" type="button" role="option" data-action="select-equity" data-symbol="${escapeHtml(item.symbol)}" data-name="${escapeHtml(item.name)}"><strong>${escapeHtml(item.symbol)}</strong><span>${escapeHtml(item.name)}</span></button>`).join("")
@@ -600,7 +695,7 @@ function showEquitySearchResults(form, items) {
 function scheduleEquitySearch(input) {
   if (equitySearchTimer) clearTimeout(equitySearchTimer);
   const form = input.form;
-  const results = form.querySelector(".equity-search-results");
+  const results = form.querySelector(".equity-search-results:not(.mutual-fund-search-results)");
   const query = input.value.trim();
   const sequence = ++equitySearchSequence;
   if (query.length < 3) {
@@ -629,8 +724,9 @@ function openHoldingForm(product = "") {
     <label>Family member<select name="ownerEmail" required>${memberOptions(state.session.user.email)}</select></label>
     <label>Product type<select class="holding-product-type" name="productType" required>${productOptions}</select></label>
     ${equitySearchFields()}
-    <label class="field-wide">Investment name<input name="name" maxlength="100" placeholder="e.g. HDFC Bank or SBI Fixed Deposit" required></label>
-    <label>Symbol <span class="optional">(for listed NSE assets)</span><input name="symbol" maxlength="20" placeholder="e.g. HDFCBANK"></label>
+    ${mutualFundSearchFields()}
+    <label class="field-wide"><span class="investment-name-label">Investment name *</span><input name="name" maxlength="100" placeholder="e.g. HDFC Bank or SBI Fixed Deposit" required></label>
+    <label><span class="price-identifier-label">Price identifier</span> <span class="optional price-identifier-note">(optional)</span><input name="symbol" maxlength="20" placeholder="e.g. HDFCBANK"></label>
     <label>Broker / institution<input name="broker" maxlength="80" placeholder="Optional"></label>
     <label class="field-wide">Reference number <span class="optional">(optional; distinguishes separate investments)</span><input name="referenceNo" maxlength="100" placeholder="e.g. deposit reference or policy number"></label>
     <div class="form-divider">OPENING POSITION</div>
@@ -657,7 +753,7 @@ function openHoldingForm(product = "") {
   </form>`);
   const form = byId("holding-form");
   refreshMaturityFields(form);
-  updateEquitySearchVisibility(form);
+  updateProductSearchVisibility(form);
 }
 
 function openEditHoldingForm(holdingId) {
@@ -670,8 +766,9 @@ function openEditHoldingForm(holdingId) {
     <label>Family member<select name="ownerEmail" required>${memberOptions(holding.ownerEmail)}</select></label>
     <label>Product type<select class="holding-product-type" name="productType" required>${productOptions}</select></label>
     ${equitySearchFields()}
-    <label class="field-wide">Investment name<input name="name" maxlength="100" value="${escapeHtml(holding.name)}" required></label>
-    <label>Symbol<input name="symbol" maxlength="20" value="${escapeHtml(holding.symbol || "")}" placeholder="Optional"></label>
+    ${mutualFundSearchFields()}
+    <label class="field-wide"><span class="investment-name-label">Investment name *</span><input name="name" maxlength="100" value="${escapeHtml(holding.name)}" required></label>
+    <label><span class="price-identifier-label">Price identifier</span> <span class="optional price-identifier-note">(optional)</span><input name="symbol" maxlength="20" value="${escapeHtml(holding.symbol || "")}" placeholder="Optional"></label>
     <label>Broker / institution<input name="broker" maxlength="80" value="${escapeHtml(holding.broker || "")}" placeholder="Optional"></label>
     <label class="field-wide">Reference number <span class="optional">(optional; distinguishes separate investments)</span><input name="referenceNo" maxlength="100" value="${escapeHtml(holding.importDetails?.["Reference no"] || "")}" placeholder="e.g. deposit reference or policy number"></label>
     <div class="form-divider">MATURITY &amp; INTEREST <span class="optional">Optional</span></div>
@@ -692,7 +789,7 @@ function openEditHoldingForm(holdingId) {
   </form>`);
   const form = byId("edit-holding-form");
   refreshMaturityFields(form);
-  updateEquitySearchVisibility(form);
+  updateProductSearchVisibility(form);
 }
 
 function openTransactionForm() {
@@ -734,11 +831,18 @@ async function refreshPrices() {
       setNotice(result.message, "warning");
       return;
     }
-    const asOf = result.asOf ? ` for ${result.asOf}` : "";
-    const missing = result.missingSymbols?.length
-      ? ` No price found for ${result.missingSymbols.slice(0, 5).join(", ")}${result.missingSymbols.length > 5 ? " and more" : ""}.`
-      : "";
-    setNotice(`${result.updated} holding price(s) updated from ${result.source || "market-data adapter"}${asOf}.${missing}`, result.updated ? "success" : "warning");
+    const issues = [];
+    if (result.missingSymbols?.length) {
+      issues.push(`No equity price found for ${result.missingSymbols.slice(0, 5).join(", ")}${result.missingSymbols.length > 5 ? " and more" : ""}.`);
+    }
+    if (result.missingSchemeCodes?.length) {
+      issues.push(`Add or verify AMFI scheme codes for ${result.missingSchemeCodes.slice(0, 5).join(", ")}${result.missingSchemeCodes.length > 5 ? " and more" : ""}.`);
+    }
+    if (result.bondNote) issues.push(result.bondNote);
+    if (result.failures?.length) issues.push(...result.failures);
+    const source = result.source ? ` from ${result.source}` : "";
+    const suffix = issues.length ? ` ${issues.join(" ")}` : "";
+    setNotice(`${result.updated} holding price(s) updated${source}.${suffix}`, result.updated && !issues.length ? "success" : "warning");
   } catch (error) {
     setNotice(error.message, "error");
   }
@@ -945,6 +1049,14 @@ document.addEventListener("click", async (event) => {
       form.querySelector(".equity-search-input").value = `${action.dataset.symbol} — ${action.dataset.name}`;
       form.querySelector(".equity-search-results").hidden = true;
     }
+    if (action.dataset.action === "select-mutual-fund") {
+      const form = action.closest("form");
+      form.elements.name.value = action.dataset.name;
+      form.elements.symbol.value = action.dataset.schemeCode;
+      form.querySelector(".mutual-fund-search-input").value =
+        `${action.dataset.name} — ${action.dataset.plan} — ${action.dataset.option}`;
+      form.querySelector(".mutual-fund-search-results").hidden = true;
+    }
     if (action.dataset.action === "refresh-prices") await refreshPrices();
     if (action.dataset.action === "download-template") await downloadTemplate();
     if (action.dataset.action === "download-transactions-template") downloadTransactionsTemplate();
@@ -1000,13 +1112,14 @@ document.addEventListener("change", (event) => {
   if (event.target.id === "holdings-import") importHoldings(event.target.files[0]);
   if (event.target.id === "transactions-import") importTransactions(event.target.files[0]);
   if (event.target.id === "transaction-type") refreshTransactionFields();
-  if (event.target.matches(".holding-product-type")) updateEquitySearchVisibility(event.target.form);
+  if (event.target.matches(".holding-product-type")) updateProductSearchVisibility(event.target.form);
   if (event.target.matches(".tenor-input,.tenor-start")) refreshMaturityFields(event.target.form);
   if (event.target.matches(".bank-ifsc")) scheduleIfscLookup(event.target.form);
 });
 
 document.addEventListener("input", (event) => {
   if (event.target.matches(".equity-search-input")) scheduleEquitySearch(event.target);
+  if (event.target.matches(".mutual-fund-search-input")) scheduleMutualFundSearch(event.target);
   if (event.target.matches(".tenor-input,.tenor-start")) refreshMaturityFields(event.target.form);
   if (event.target.matches(".bank-ifsc")) scheduleIfscLookup(event.target.form);
 });

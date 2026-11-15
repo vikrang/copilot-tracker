@@ -27,7 +27,8 @@ const simpleMaturity = () => [
   { key: "calculatedMaturityDate", header: "Calculated maturity date", width: 24, type: "calculated", computed: true }
 ];
 const mutualFundFields = () => [
-  text("name", "Investment name *", 24),
+  text("name", "Scheme name *", 32),
+  text("symbol", "AMFI scheme code *", 20),
   select("amc", "AMC *", 28, "AMCs"),
   select("schemeCategory", "Scheme category *", 26, "SchemeCategories"),
   select("plan", "Plan *", 14, "Plans"),
@@ -134,11 +135,11 @@ export const IMPORT_SHEETS = [
 
   makeSheet("Equity - Mutual Funds", "Equity mutual fund", "equity", [
     owner(), recordId(), ...mutualFundFields()
-  ], { name: "name", broker: "amc", quantity: "quantity", purchasePrice: "purchasePrice", currentPrice: "currentPrice" }),
+  ], { name: "name", symbol: "symbol", broker: "amc", quantity: "quantity", purchasePrice: "purchasePrice", currentPrice: "currentPrice" }),
 
   makeSheet("Debt - Mutual Funds", "Debt mutual fund", "debt", [
     owner(), recordId(), ...mutualFundFields()
-  ], { name: "name", broker: "amc", quantity: "quantity", purchasePrice: "purchasePrice", currentPrice: "currentPrice" }),
+  ], { name: "name", symbol: "symbol", broker: "amc", quantity: "quantity", purchasePrice: "purchasePrice", currentPrice: "currentPrice" }),
 
   makeSheet("Equity - ETFs", "Listed equity", "equity", [
     owner(), recordId(), text("name", "Investment name *", 24),
