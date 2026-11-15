@@ -17,7 +17,9 @@ import {
 } from "./src/investment-domain.mjs";
 import { buildHoldingsTemplate, parseHoldingsWorkbook } from "./src/investment-workbook.mjs";
 import { EncryptedStore } from "./src/encrypted-store.mjs";
+import { AmfiMarketData } from "./src/amfi-market-data.mjs";
 import { NseMarketData } from "./src/nse-market-data.mjs";
+import { refreshMarketPrices } from "./src/market-price-refresh.mjs";
 
 const root = fileURLToPath(new URL(".", import.meta.url));
 await loadLocalEnv(resolve(root, ".env"));
@@ -51,6 +53,7 @@ const sessions = new Map();
 const pendingStates = new Map();
 const sessionTtl = 12 * 60 * 60 * 1000;
 const nseMarketData = new NseMarketData();
+const amfiMarketData = new AmfiMarketData();
 const secureCookie = process.env.NODE_ENV === "production";
 const cookieName = secureCookie ? "__Host-invest_session" : "invest_session";
 const encryptionKey = process.env.DATA_ENCRYPTION_KEY || "";
@@ -217,64 +220,12 @@ function requireStore(response) {
 }
 
 async function fetchMarketPrices(data) {
-  if (!marketDataConfigured) {
-    const holdings = data.holdings.filter((holding) => holding.productType === "Listed equity" && holding.symbol);
-    if (!holdings.length) return { updated: 0, message: "Add listed equities with NSE symbols before refreshing prices." };
-    const snapshot = await nseMarketData.latestBhavcopy();
-    const prices = new Map(snapshot.prices.map((quote) => [quote.symbol, quote]));
-    let updated = 0;
-    for (const holding of holdings) {
-      const quote = prices.get(holding.symbol.toUpperCase());
-      if (quote) {
-        updateHoldingPrice(data, holding.id, quote.price, "NSE bhavcopy", quote.asOf);
-        updated += 1;
-      }
-    }
-    return {
-      updated,
-      source: "NSE bhavcopy",
-      asOf: snapshot.asOf,
-      missingSymbols: [...new Set(holdings.filter((holding) => !prices.has(holding.symbol.toUpperCase())).map((holding) => holding.symbol))]
-    };
-  }
-  const holdings = data.holdings;
-  const endpoint = new URL(process.env.MARKET_DATA_URL);
-  if (endpoint.protocol !== "https:" && !["localhost", "127.0.0.1"].includes(endpoint.hostname)) {
-    throw Object.assign(new Error("The configured market-data adapter must use HTTPS."), { status: 503 });
-  }
-  const symbols = [...new Set(holdings.map((holding) => holding.symbol).filter(Boolean))];
-  if (!symbols.length) return { updated: 0, message: "Add NSE symbols to eligible holdings before refreshing prices." };
-  const headers = { "content-type": "application/json" };
-  if (process.env.MARKET_DATA_TOKEN) headers.authorization = `Bearer ${process.env.MARKET_DATA_TOKEN}`;
-  const response = await fetch(endpoint, {
-    method: "POST",
-    headers,
-    body: JSON.stringify({ symbols }),
-    signal: AbortSignal.timeout(15_000)
+  return refreshMarketPrices(data, {
+    nseMarketData,
+    amfiMarketData,
+    marketDataUrl: marketDataConfigured ? process.env.MARKET_DATA_URL : "",
+    marketDataToken: process.env.MARKET_DATA_TOKEN
   });
-  if (!response.ok) throw Object.assign(new Error(`Market-data adapter returned HTTP ${response.status}.`), { status: 502 });
-  const payload = await response.json();
-  if (!Array.isArray(payload.prices)) throw Object.assign(new Error("Market-data adapter must return a prices array."), { status: 502 });
-  const prices = new Map();
-  for (const item of payload.prices) {
-    const symbol = String(item.symbol || "").toUpperCase();
-    const price = Number(item.price);
-    if (symbols.includes(symbol) && Number.isFinite(price) && price >= 0 && price <= 10_000_000) {
-      prices.set(symbol, {
-        price,
-        asOf: item.asOf && Number.isFinite(Date.parse(item.asOf)) ? item.asOf : new Date().toISOString()
-      });
-    }
-  }
-  let updated = 0;
-  for (const holding of holdings) {
-    if (holding.symbol && prices.has(holding.symbol)) {
-      const quote = prices.get(holding.symbol);
-      updateHoldingPrice(data, holding.id, quote.price, "market-data adapter", quote.asOf);
-      updated += 1;
-    }
-  }
-  return { updated, symbols: prices.size, source: "market-data adapter" };
 }
 
 async function exchangeGoogleCode(code, verifier) {
@@ -421,6 +372,14 @@ const server = createServer(async (request, response) => {
       const query = url.searchParams.get("q") || "";
       const items = query.trim().length < 3 ? [] : await nseMarketData.searchEquities(query);
       sendJson(response, 200, { items, source: "NSE EQUITY_L" });
+      return;
+    }
+    if (request.method === "GET" && url.pathname === "/api/mutual-funds/search") {
+      const session = requireSession(request, response);
+      if (!session) return;
+      const query = url.searchParams.get("q") || "";
+      const items = query.trim().length < 3 ? [] : await amfiMarketData.searchSchemes(query);
+      sendJson(response, 200, { items, source: "AMFI NAVAll" });
       return;
     }
     if (request.method === "GET" && /^\/api\/banks\/ifsc\/[A-Za-z0-9]{11}$/.test(url.pathname)) {

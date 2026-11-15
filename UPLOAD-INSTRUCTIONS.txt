@@ -1,20 +1,18 @@
 INVESTMENT TRACKER - UPLOAD PACKAGE
 
-This bundle contains the household investment tracker only. It deliberately excludes the stock scanner project.
+This bundle contains the household investment tracker only. Scanner source files are deliberately excluded.
 
 UPLOAD
-1. Extract this ZIP into the root of a separate GitHub repository for the investment tracker. Keep folder names intact, especially src/ and public/.
+1. Extract the ZIP into the root of a separate GitHub repository for the investment tracker. Keep folder names intact, especially src/ and public/.
 2. Upload and commit the complete extracted contents. Do not copy just server.mjs; it imports files from src/.
 3. Keep the scanner repository and Render service separate and unchanged.
 4. In Render, create a separate Web Service from the investment-tracker repository/branch, or use the included render.yaml Blueprint. For manual setup use the repository root, build command `npm ci`, start command `npm start`, and HOST=`0.0.0.0`.
-5. Set Google OAuth and encryption secrets in the tracker service's Render Environment settings, following README.md. This ZIP intentionally does not contain .env or household data.
+5. Set Google OAuth and encryption secrets in the tracker service's Render Environment settings, following README.md. This ZIP intentionally excludes .env and household data.
 
-CONTENTS
-- server.mjs, package.json, package-lock.json, render.yaml
-- public/ frontend files
-- src/ tracker modules required by server.mjs
-- test/ tracker tests
-- README.md, .env.example, .gitignore, start.bat
+PRICE DATA
+- Listed equities: NSE official end-of-day bhavcopy.
+- Mutual funds: AMFI published daily NAV; add the AMFI scheme code to each fund.
+- Bonds/NCDs: a trusted configured adapter must return a price per unit keyed by ISIN; otherwise use manual prices.
 
 SECURITY
 Never upload .env, data/, credentials, or the encryption key to GitHub. Configure secrets in Render's environment settings.
