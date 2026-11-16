@@ -23,3 +23,7 @@ PORTFOLIO DELETION
 
 TEMPLATE PERFORMANCE
 Worksheet protection is retained to help prevent accidental formula edits. It is not a security feature. Template generation uses a lower worksheet-protection hash iteration count to avoid slowing downloads.
+
+
+TEMPLATE SPEED
+The blank Excel template is generated once during server startup and cached in memory for subsequent downloads. Allow the service to complete startup after each deployment.

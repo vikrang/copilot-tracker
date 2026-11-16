@@ -55,6 +55,13 @@ const pendingStates = new Map();
 const sessionTtl = 12 * 60 * 60 * 1000;
 const nseMarketData = new NseMarketData();
 const amfiMarketData = new AmfiMarketData();
+let holdingsTemplateBuffer = null;
+let holdingsTemplateError = null;
+const holdingsTemplateWarmup = allowedEmails.length
+  ? buildHoldingsTemplate(allowedEmails, familyMemberNames)
+    .then((buffer) => { holdingsTemplateBuffer = buffer; })
+    .catch((error) => { holdingsTemplateError = error; })
+  : Promise.resolve();
 const secureCookie = process.env.NODE_ENV === "production";
 const cookieName = secureCookie ? "__Host-invest_session" : "invest_session";
 const encryptionKey = process.env.DATA_ENCRYPTION_KEY || "";
@@ -364,7 +371,10 @@ const server = createServer(async (request, response) => {
     if (request.method === "GET" && url.pathname === "/api/import/holdings-template") {
       const session = requireSession(request, response);
       if (!session) return;
-      sendWorkbook(response, await buildHoldingsTemplate(allowedEmails, familyMemberNames));
+      await holdingsTemplateWarmup;
+      if (holdingsTemplateError) throw holdingsTemplateError;
+      const template = holdingsTemplateBuffer || await buildHoldingsTemplate(allowedEmails, familyMemberNames);
+      sendWorkbook(response, template);
       return;
     }
     if (request.method === "GET" && url.pathname === "/api/equities/search") {
