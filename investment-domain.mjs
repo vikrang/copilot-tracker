@@ -11,6 +11,7 @@ export const PRODUCT_TYPES = [
   "Gold",
   "Other"
 ];
+const MUTUAL_FUND_PRODUCT_TYPES = new Set(["Equity mutual fund", "Debt mutual fund"]);
 
 export const TRANSACTION_TYPES = ["BUY", "SELL", "DIVIDEND", "BONUS"];
 export const INTEREST_FREQUENCIES = ["Monthly", "Quarterly", "Half-yearly", "Annual", "At maturity", "Other"];
@@ -178,8 +179,13 @@ export function normalizeHolding(input, allowedEmails, existing = []) {
   const productType = requiredText(input.productType, "Product type", 40);
   if (!PRODUCT_TYPES.includes(productType)) throw invalid("Choose a supported investment product type.");
   const ownerEmail = cleanEmail(input.ownerEmail, allowedEmails);
-  const name = requiredText(input.name, "Investment name", 100);
-  const symbol = optionalText(input.symbol, "Symbol", 20)?.toUpperCase() || null;
+  const isMutualFund = MUTUAL_FUND_PRODUCT_TYPES.has(productType);
+  const name = requiredText(input.name, isMutualFund ? "Scheme name" : "Investment name", 100);
+  const symbolLabel = isMutualFund ? "AMFI scheme code" : "Symbol";
+  const symbol = optionalText(input.symbol, symbolLabel, 20)?.toUpperCase() || null;
+  if (isMutualFund && (!symbol || !/^\d{1,10}$/.test(symbol))) {
+    throw invalid("AMFI scheme code is required and must be numeric.");
+  }
   if (symbol && !/^[A-Z0-9.-]+$/.test(symbol)) throw invalid("Symbol may contain letters, numbers, dots, and hyphens.");
   const broker = optionalText(input.broker, "Broker / institution", 80);
   const purchaseDate = dateValue(input.purchaseDate, "Purchase date", true);
@@ -350,6 +356,24 @@ export function updateHolding(data, holdingId, input, allowedEmails) {
     ...(unchangedPrice ? { priceSource: holding.priceSource, priceUpdatedAt: holding.priceUpdatedAt } : {})
   });
   return holding;
+}
+
+export function deleteHoldings(data, holdingIds) {
+  if (!Array.isArray(holdingIds) || holdingIds.length < 1 || holdingIds.length > data.holdings.length) {
+    throw invalid("Select one or more existing investments to delete.");
+  }
+  const ids = holdingIds.map((id) => typeof id === "string" ? id.trim() : "");
+  if (ids.some((id) => !id)) throw invalid("Investment IDs are invalid.");
+  if (new Set(ids).size !== ids.length) throw invalid("Investment selection contains duplicates.");
+
+  const selectedIds = new Set(ids);
+  const deletedCount = data.holdings.filter((holding) => selectedIds.has(holding.id)).length;
+  if (deletedCount !== ids.length) throw invalid("One or more investments were not found.");
+
+  const deletedTransactions = data.transactions.filter((transaction) => selectedIds.has(transaction.holdingId)).length;
+  data.holdings = data.holdings.filter((holding) => !selectedIds.has(holding.id));
+  data.transactions = data.transactions.filter((transaction) => !selectedIds.has(transaction.holdingId));
+  return { deleted: deletedCount, deletedTransactions };
 }
 
 export function updateHoldingPrice(data, holdingId, price, source = "manual", asOf = new Date().toISOString()) {

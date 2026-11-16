@@ -27,8 +27,8 @@ const simpleMaturity = () => [
   { key: "calculatedMaturityDate", header: "Calculated maturity date", width: 24, type: "calculated", computed: true }
 ];
 const mutualFundFields = () => [
-  text("name", "Investment name *", 24),
-  text("symbol", "AMFI scheme code", 20),
+  text("name", "Scheme name *", 32),
+  text("symbol", "AMFI scheme code *", 20),
   select("amc", "AMC *", 28, "AMCs"),
   select("schemeCategory", "Scheme category *", 26, "SchemeCategories"),
   select("plan", "Plan *", 14, "Plans"),

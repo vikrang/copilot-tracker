@@ -11,6 +11,7 @@ const TEMPLATE_ROWS = 500;
 const DAY_MS = 24 * 60 * 60 * 1000;
 const GUIDE_SHEETS = new Set(["Read me", "Field guide"]);
 const WORKSHEET_PASSWORD = "holdings-template";
+const WORKSHEET_PROTECTION_SPIN_COUNT = 1000;
 
 const COLUMNS = [
   ["ownerEmail", "Family member email", 32],
@@ -264,7 +265,8 @@ function buildInvestmentSheet(workbook, schema) {
     selectLockedCells: false,
     selectUnlockedCells: true,
     autoFilter: true,
-    sort: true
+    sort: true,
+    spinCount: WORKSHEET_PROTECTION_SPIN_COUNT
   });
 }
 

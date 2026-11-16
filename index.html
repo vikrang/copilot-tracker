@@ -5,15 +5,15 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="theme-color" content="#f5f7fb">
     <meta name="description" content="A private family investment portfolio dashboard.">
-    <title>Household — Investment portfolio</title>
+    <title>Copilot-Tracker — Investment portfolio</title>
     <link rel="stylesheet" href="/styles.css">
     <script type="module" src="/app.js"></script>
   </head>
   <body>
     <div id="auth-screen" class="auth-screen">
-      <a class="brand" href="/" aria-label="Household home">
-        <span class="brand-mark" aria-hidden="true">h</span>
-        <span>household<span class="brand-period">.</span></span>
+      <a class="brand" href="/" aria-label="Copilot-Tracker home">
+        <span class="brand-mark" aria-hidden="true">C</span>
+        <span>Copilot-Tracker</span>
       </a>
       <main class="auth-card">
         <div class="auth-icon" aria-hidden="true">↗</div>
@@ -39,9 +39,9 @@
 
     <div id="app-shell" class="app-shell" hidden>
       <aside class="sidebar">
-        <a class="brand" href="/" aria-label="Household home">
-          <span class="brand-mark" aria-hidden="true">h</span>
-          <span>household<span class="brand-period">.</span></span>
+        <a class="brand" href="/" aria-label="Copilot-Tracker home">
+          <span class="brand-mark" aria-hidden="true">C</span>
+          <span>Copilot-Tracker</span>
         </a>
         <p class="sidebar-label">WORKSPACE</p>
         <nav class="side-nav" aria-label="Main navigation">
@@ -53,7 +53,7 @@
           <button class="nav-link" type="button" data-screen="tools"><span class="nav-icon">⇵</span> Import &amp; export</button>
         </nav>
         <div class="sidebar-bottom">
-          <div class="secure-note"><span class="secure-dot"></span><span><strong>Private household</strong><small>Shared with authorized family</small></span></div>
+          <div class="secure-note"><span class="secure-dot"></span><span><strong>Private portfolio</strong><small>Shared with authorized family</small></span></div>
           <button id="signout-button" class="account-button" type="button">
             <span id="avatar" class="avatar">A</span>
             <span class="account-copy"><strong id="account-name">Google account</strong><small>Sign out</small></span>
@@ -65,7 +65,7 @@
       <main class="main-content">
         <header class="topbar">
           <button id="mobile-menu" class="mobile-menu" type="button" aria-label="Toggle navigation">☰</button>
-          <div class="breadcrumb"><span>Household</span><span class="breadcrumb-slash">/</span><strong id="page-title">Overview</strong></div>
+          <div class="breadcrumb"><span>Copilot-Tracker</span><span class="breadcrumb-slash">/</span><strong id="page-title">Overview</strong></div>
           <div class="topbar-actions">
             <span class="market-status"><i></i><span>Private workspace</span></span>
             <button id="add-investment-top" class="button button-primary button-small" type="button"><span>＋</span> Add investment</button>
@@ -73,7 +73,7 @@
         </header>
 
         <div id="app-notice" class="app-notice" role="status" hidden></div>
-        <div id="loading-state" class="loading-state"><span class="spinner"></span>Loading your encrypted household portfolio…</div>
+        <div id="loading-state" class="loading-state"><span class="spinner"></span>Loading your encrypted portfolio…</div>
         <div id="screen-content" hidden></div>
       </main>
     </div>

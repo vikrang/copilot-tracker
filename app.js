@@ -267,8 +267,12 @@ function renderProjectionChart(projections, baseValue) {
 function holdingsTable(holdings, compact = false) {
   if (!holdings.length) return emptyPanel("Your portfolio starts here", "Add your family's first investment to see its value, cost and returns.", '<button class="button button-primary" type="button" data-action="add-holding">＋ Add investment</button>');
   const shown = compact ? holdings.slice(0, 5) : holdings;
-  return `<div class="table-wrap"><table class="data-table">
-    <thead><tr><th>Investment</th><th>Owner</th><th>Invested</th><th>Current value</th><th>Unrealized</th><th>Holding period</th>${compact ? "" : "<th>Price</th><th></th>"}</tr></thead>
+  const selectionToolbar = compact ? "" : `<div class="holdings-selection-toolbar">
+    <div><strong>Manage portfolio holdings</strong><small>Deleting an investment also permanently deletes its linked activity.</small></div>
+    <button class="button button-danger button-small" type="button" data-action="delete-selected-holdings" disabled>Delete selected (0)</button>
+  </div>`;
+  return `${selectionToolbar}<div class="table-wrap"><table class="data-table">
+    <thead><tr>${compact ? "" : '<th class="selection-cell"><input class="select-all-holdings" type="checkbox" aria-label="Select all investments"></th>'}<th>Investment</th><th>Owner</th><th>Invested</th><th>Current value</th><th>Unrealized</th><th>Holding period</th>${compact ? "" : "<th>Price</th><th></th>"}</tr></thead>
     <tbody>${shown.map((holding) => {
       const returnClass = holding.unrealized > 0 ? "positive" : holding.unrealized < 0 ? "negative" : "";
       const status = holding.units <= 1e-8
@@ -279,6 +283,7 @@ function holdingsTable(holdings, compact = false) {
             ? "Long-held"
             : "Short-held";
       return `<tr>
+        ${compact ? "" : `<td class="selection-cell"><input class="holding-select" type="checkbox" value="${escapeHtml(holding.id)}" aria-label="Select ${escapeHtml(holding.name)}"></td>`}
         <td><span class="holding-name">${escapeHtml(holding.name)}</span><small>${escapeHtml(holding.productType)}${holding.symbol ? ` · ${escapeHtml(holding.symbol)}` : ""}</small></td>
         <td><span class="member-chip"><i>${escapeHtml(memberLabel(holding.ownerEmail).slice(0, 1).toUpperCase())}</i>${escapeHtml(memberLabel(holding.ownerEmail))}</span></td>
         <td>${money(holding.costBasis)}</td>
@@ -286,7 +291,7 @@ function holdingsTable(holdings, compact = false) {
         <td class="${returnClass}">${holding.unrealized === null ? "—" : money(holding.unrealized)}${holding.unrealized !== null && holding.costBasis ? `<small>${((holding.unrealized / holding.costBasis) * 100).toFixed(1)}%</small>` : ""}</td>
         <td><span class="term-chip ${status === "Long-held" ? "term-long" : status === "Mixed" ? "term-mixed" : status === "Closed" ? "term-closed" : "term-short"}">${status}</span><small>${holding.oldestDays === null ? "—" : `${holding.oldestDays} days`} · indicative</small></td>
         ${compact ? "" : `<td>${holding.currentPrice === null ? "—" : money(holding.currentPrice, { decimals: 2 })}<small>${holding.priceUpdatedAt ? `${escapeHtml(holding.priceSource || "manual")} · ${escapeHtml(new Date(holding.priceUpdatedAt).toLocaleDateString("en-IN"))}` : "No price update"}</small></td>
-          <td><button class="icon-button" type="button" title="Edit investment details" aria-label="Edit ${escapeHtml(holding.name)}" data-action="edit-holding" data-id="${escapeHtml(holding.id)}">✎</button><button class="icon-button" type="button" title="Update price" aria-label="Update price for ${escapeHtml(holding.name)}" data-action="edit-price" data-id="${escapeHtml(holding.id)}">↻</button></td>`}
+            <td><button class="icon-button" type="button" title="Edit investment details" aria-label="Edit ${escapeHtml(holding.name)}" data-action="edit-holding" data-id="${escapeHtml(holding.id)}">✎</button><button class="icon-button" type="button" title="Update price" aria-label="Update price for ${escapeHtml(holding.name)}" data-action="edit-price" data-id="${escapeHtml(holding.id)}">↻</button><button class="icon-button icon-button-danger" type="button" title="Delete investment and its activity" aria-label="Delete ${escapeHtml(holding.name)}" data-action="delete-holding" data-id="${escapeHtml(holding.id)}">⌫</button></td>`}
       </tr>`;
     }).join("")}</tbody>
   </table></div>`;
@@ -416,7 +421,7 @@ function toolsScreen() {
     <div class="grid-two tools-grid">
       <section class="panel"><div class="panel-heading"><div><p class="eyebrow">BULK ADD</p><h2>Import investments</h2></div><span class="tool-icon">⇧</span></div>
         <p class="panel-description">The styled Excel template has asset-class tabs, a Read me sheet, a field guide, dropdowns and protected maturity formulas. Each imported row becomes an opening BUY position.</p>
-        <div class="tool-actions"><button class="button button-secondary" type="button" data-action="download-template">Download Excel template</button><label class="button button-primary file-label">Choose Excel or CSV<input id="holdings-import" type="file" accept=".xlsx,.csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,text/csv" hidden></label></div>
+        <div class="tool-actions"><a class="button button-secondary" href="/api/import/holdings-template">Download Excel template</a><label class="button button-primary file-label">Choose Excel or CSV<input id="holdings-import" type="file" accept=".xlsx,.csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,text/csv" hidden></label></div>
         <p class="tool-small">Enter a purchase/start date and tenor to calculate maturity; otherwise enter a maturity date directly. Same-name investments stay separate. Reference numbers distinguish repeated records; rows without one remain separate.</p>
         <p class="tool-small">IFSC lookup fills bank name/address in forms and imports using an online public directory; if lookup is unavailable, the code is kept and a warning is shown.</p>
         <div class="tool-actions transaction-import-actions"><button class="button button-secondary" type="button" data-action="download-transactions-template">Transaction template</button><label class="button button-secondary file-label">Import transactions<input id="transactions-import" type="file" accept=".csv,text/csv" hidden></label></div>
@@ -576,7 +581,7 @@ function equitySearchFields() {
 }
 
 function mutualFundSearchFields() {
-  return `<label class="field-wide mutual-fund-search-field" hidden>Search AMFI mutual-fund schemes<input class="mutual-fund-search-input" type="search" autocomplete="off" placeholder="Type at least 3 letters of a scheme"><small>Searches AMFI's published NAV list. Select a scheme to fill its name and scheme code.</small></label>
+  return `<label class="field-wide mutual-fund-search-field" hidden>Search AMFI mutual-fund schemes<input class="mutual-fund-search-input" type="search" autocomplete="off" placeholder="Type at least 3 letters of a scheme"><small>Searches AMFI's published NAV list. Select a scheme to fill the required scheme name and code.</small></label>
     <div class="field-wide equity-search-results mutual-fund-search-results" role="listbox" aria-live="polite" hidden></div>`;
 }
 
@@ -589,6 +594,30 @@ function updateProductSearchVisibility(form) {
   const fundResults = form.querySelector(".mutual-fund-search-results");
   const fundSearch = form.querySelector(".mutual-fund-search-input");
   const identifier = form.elements.symbol;
+  const isMutualFund = MUTUAL_FUND_TYPES.includes(productType);
+  const nameLabel = form.querySelector(".investment-name-label");
+  const identifierLabel = form.querySelector(".price-identifier-label");
+  const identifierNote = form.querySelector(".price-identifier-note");
+
+  if (nameLabel) nameLabel.textContent = isMutualFund ? "Scheme name *" : "Investment name *";
+  if (identifierLabel) {
+    identifierLabel.textContent = isMutualFund
+      ? "AMFI scheme code *"
+      : productType === "Listed equity"
+        ? "NSE symbol"
+        : productType === "Bond / NCD"
+          ? "Bond ISIN"
+          : "Price identifier";
+  }
+  if (identifierNote) {
+    identifierNote.textContent = isMutualFund
+      ? ""
+      : productType === "Listed equity"
+        ? "(for NSE price updates)"
+        : productType === "Bond / NCD"
+          ? "(for adapter pricing)"
+          : "(optional)";
+  }
 
   if (equityField && equityResults && equitySearch) {
     const visible = productType === "Listed equity";
@@ -613,9 +642,10 @@ function updateProductSearchVisibility(form) {
     }
   }
   if (identifier) {
+    identifier.required = isMutualFund;
     identifier.placeholder = productType === "Listed equity"
       ? "e.g. HDFCBANK"
-      : MUTUAL_FUND_TYPES.includes(productType)
+      : isMutualFund
         ? "AMFI scheme code, e.g. 135762"
         : productType === "Bond / NCD"
           ? "ISIN, e.g. INE..."
@@ -700,8 +730,8 @@ function openHoldingForm(product = "") {
     <label>Product type<select class="holding-product-type" name="productType" required>${productOptions}</select></label>
     ${equitySearchFields()}
     ${mutualFundSearchFields()}
-    <label class="field-wide">Investment name<input name="name" maxlength="100" placeholder="e.g. HDFC Bank or SBI Fixed Deposit" required></label>
-    <label>Price identifier <span class="optional">(NSE symbol, AMFI scheme code or bond ISIN)</span><input name="symbol" maxlength="20" placeholder="e.g. HDFCBANK"></label>
+    <label class="field-wide"><span class="investment-name-label">Investment name *</span><input name="name" maxlength="100" placeholder="e.g. HDFC Bank or SBI Fixed Deposit" required></label>
+    <label><span class="price-identifier-label">Price identifier</span> <span class="optional price-identifier-note">(optional)</span><input name="symbol" maxlength="20" placeholder="e.g. HDFCBANK"></label>
     <label>Broker / institution<input name="broker" maxlength="80" placeholder="Optional"></label>
     <label class="field-wide">Reference number <span class="optional">(optional; distinguishes separate investments)</span><input name="referenceNo" maxlength="100" placeholder="e.g. deposit reference or policy number"></label>
     <div class="form-divider">OPENING POSITION</div>
@@ -742,8 +772,8 @@ function openEditHoldingForm(holdingId) {
     <label>Product type<select class="holding-product-type" name="productType" required>${productOptions}</select></label>
     ${equitySearchFields()}
     ${mutualFundSearchFields()}
-    <label class="field-wide">Investment name<input name="name" maxlength="100" value="${escapeHtml(holding.name)}" required></label>
-    <label>Price identifier <span class="optional">(NSE symbol, AMFI scheme code or bond ISIN)</span><input name="symbol" maxlength="20" value="${escapeHtml(holding.symbol || "")}" placeholder="Optional"></label>
+    <label class="field-wide"><span class="investment-name-label">Investment name *</span><input name="name" maxlength="100" value="${escapeHtml(holding.name)}" required></label>
+    <label><span class="price-identifier-label">Price identifier</span> <span class="optional price-identifier-note">(optional)</span><input name="symbol" maxlength="20" value="${escapeHtml(holding.symbol || "")}" placeholder="Optional"></label>
     <label>Broker / institution<input name="broker" maxlength="80" value="${escapeHtml(holding.broker || "")}" placeholder="Optional"></label>
     <label class="field-wide">Reference number <span class="optional">(optional; distinguishes separate investments)</span><input name="referenceNo" maxlength="100" value="${escapeHtml(holding.importDetails?.["Reference no"] || "")}" placeholder="e.g. deposit reference or policy number"></label>
     <div class="form-divider">MATURITY &amp; INTEREST <span class="optional">Optional</span></div>
@@ -823,6 +853,50 @@ async function refreshPrices() {
   }
 }
 
+function updateHoldingSelectionControls() {
+  const checkboxes = [...document.querySelectorAll(".holding-select")];
+  const selectedCount = checkboxes.filter((checkbox) => checkbox.checked).length;
+  const selectAll = document.querySelector(".select-all-holdings");
+  const deleteButton = document.querySelector('[data-action="delete-selected-holdings"]');
+  if (selectAll) {
+    selectAll.checked = checkboxes.length > 0 && selectedCount === checkboxes.length;
+    selectAll.indeterminate = selectedCount > 0 && selectedCount < checkboxes.length;
+  }
+  if (deleteButton) {
+    deleteButton.disabled = selectedCount === 0;
+    deleteButton.textContent = `Delete selected (${selectedCount})`;
+  }
+}
+
+async function deleteHolding(holdingId) {
+  const holding = state.dashboard.holdings.find((item) => item.id === holdingId);
+  if (!holding || !window.confirm(`Delete "${holding.name}" and all linked activity? This cannot be undone.`)) return;
+  try {
+    const result = await api(`/api/holdings/${encodeURIComponent(holdingId)}`, { method: "DELETE" });
+    if (await loadDashboard()) {
+      setNotice(`Deleted "${holding.name}" and ${result.deletedTransactions} linked activity record(s).`, "success");
+    }
+  } catch (error) {
+    setNotice(error.message, "error");
+  }
+}
+
+async function deleteSelectedHoldings() {
+  const ids = [...document.querySelectorAll(".holding-select:checked")].map((checkbox) => checkbox.value);
+  if (!ids.length || !window.confirm(`Delete ${ids.length} selected investment(s) and all their linked activity? This cannot be undone.`)) return;
+  const button = document.querySelector('[data-action="delete-selected-holdings"]');
+  if (button) button.disabled = true;
+  try {
+    const result = await api("/api/holdings", { method: "DELETE", body: { ids } });
+    if (await loadDashboard()) {
+      setNotice(`Deleted ${result.deleted} investment(s) and ${result.deletedTransactions} linked activity record(s).`, "success");
+    }
+  } catch (error) {
+    setNotice(error.message, "error");
+    updateHoldingSelectionControls();
+  }
+}
+
 async function submitForm(form, path, method = "POST", successMessage = "Saved.") {
   const submit = form.querySelector('[type="submit"]');
   submit.disabled = true;
@@ -887,25 +961,6 @@ function downloadCsv(filename, rows) {
   link.download = filename;
   link.click();
   setTimeout(() => URL.revokeObjectURL(url), 1000);
-}
-
-async function downloadTemplate() {
-  try {
-    const response = await fetch("/api/import/holdings-template", { credentials: "same-origin", cache: "no-store" });
-    if (!response.ok) {
-      const payload = await response.json().catch(() => ({}));
-      throw new Error(payload.error || `Template download failed (HTTP ${response.status}).`);
-    }
-    const url = URL.createObjectURL(await response.blob());
-    const link = document.createElement("a");
-    link.href = url;
-    link.download = "investment-holdings-template.xlsx";
-    link.click();
-    setTimeout(() => URL.revokeObjectURL(url), 1000);
-    setNotice("Excel template downloaded with asset-class tabs, dropdowns, a field guide and calculated maturity cells.", "success");
-  } catch (error) {
-    setNotice(error.message, "error");
-  }
 }
 
 async function importHoldings(file) {
@@ -1017,6 +1072,8 @@ document.addEventListener("click", async (event) => {
     if (action.dataset.action === "add-transaction") openTransactionForm();
     if (action.dataset.action === "edit-holding") openEditHoldingForm(action.dataset.id);
     if (action.dataset.action === "edit-price") openPriceForm(action.dataset.id);
+    if (action.dataset.action === "delete-holding") await deleteHolding(action.dataset.id);
+    if (action.dataset.action === "delete-selected-holdings") await deleteSelectedHoldings();
     if (action.dataset.action === "select-equity") {
       const form = action.closest("form");
       form.elements.name.value = action.dataset.name;
@@ -1033,7 +1090,6 @@ document.addEventListener("click", async (event) => {
       form.querySelector(".mutual-fund-search-results").hidden = true;
     }
     if (action.dataset.action === "refresh-prices") await refreshPrices();
-    if (action.dataset.action === "download-template") await downloadTemplate();
     if (action.dataset.action === "download-transactions-template") downloadTransactionsTemplate();
     if (action.dataset.action === "export-data") await exportData();
   }
@@ -1087,6 +1143,11 @@ document.addEventListener("change", (event) => {
   if (event.target.id === "holdings-import") importHoldings(event.target.files[0]);
   if (event.target.id === "transactions-import") importTransactions(event.target.files[0]);
   if (event.target.id === "transaction-type") refreshTransactionFields();
+  if (event.target.matches(".select-all-holdings")) {
+    document.querySelectorAll(".holding-select").forEach((checkbox) => { checkbox.checked = event.target.checked; });
+    updateHoldingSelectionControls();
+  }
+  if (event.target.matches(".holding-select")) updateHoldingSelectionControls();
   if (event.target.matches(".holding-product-type")) updateProductSearchVisibility(event.target.form);
   if (event.target.matches(".tenor-input,.tenor-start")) refreshMaturityFields(event.target.form);
   if (event.target.matches(".bank-ifsc")) scheduleIfscLookup(event.target.form);

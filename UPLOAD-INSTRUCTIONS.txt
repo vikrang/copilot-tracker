@@ -19,3 +19,7 @@ Never upload .env, data/, credentials, or the encryption key to GitHub. Configur
 
 PORTFOLIO DELETION
 - Single and bulk delete remove holdings and all linked activity. Export first if you need to retain that history.
+
+
+TEMPLATE PERFORMANCE
+Worksheet protection is retained to help prevent accidental formula edits. It is not a security feature. Template generation uses a lower worksheet-protection hash iteration count to avoid slowing downloads.
